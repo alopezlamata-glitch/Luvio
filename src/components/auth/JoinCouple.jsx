@@ -4,12 +4,19 @@ import { useAuth } from "../../context/AuthContext";
 
 // Only allow safe alphanumeric characters in invite codes
 const INVITE_CODE_REGEX = /^[A-Z0-9]{0,6}$/;
+// Sanitize text input
+function sanitizeText(str) {
+  return str.replace(/[<>"'&]/g, "").slice(0, 30);
+}
 
 export default function JoinCouple() {
   const { code: urlCode } = useParams();
   const { createCouple, joinCouple, user } = useAuth();
   const navigate = useNavigate();
 
+  const defaultName = user?.displayName?.split(" ")[0] || "";
+  const [nickname, setNickname] = useState(defaultName);
+  const [nicknameSet, setNicknameSet] = useState(false);
   const [mode, setMode] = useState(urlCode ? "join" : null);
   const [inviteCode, setInviteCode] = useState(urlCode || "");
   const [generatedCode, setGeneratedCode] = useState(null);
@@ -17,11 +24,18 @@ export default function JoinCouple() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  function handleNicknameSubmit() {
+    const clean = sanitizeText(nickname.trim());
+    if (!clean) return;
+    setNickname(clean);
+    setNicknameSet(true);
+  }
+
   async function handleCreate() {
     setLoading(true);
     setError(null);
     try {
-      const code = await createCouple();
+      const code = await createCouple(nickname);
       setGeneratedCode(code);
     } catch (err) {
       setError("No se pudo crear la pareja. Inténtalo de nuevo.");
@@ -39,7 +53,7 @@ export default function JoinCouple() {
     setLoading(true);
     setError(null);
     try {
-      await joinCouple(clean);
+      await joinCouple(clean, nickname);
       navigate("/");
     } catch (err) {
       setError("Código no encontrado o ya usado.");
@@ -75,8 +89,6 @@ export default function JoinCouple() {
     }
   }
 
-  const firstName = user?.displayName?.split(" ")[0] || "Hola";
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-between px-8 py-12 bg-luvio-bg safe-top safe-bottom">
 
@@ -86,15 +98,42 @@ export default function JoinCouple() {
           luvio
         </h1>
         <p className="text-luvio-warm500 text-sm font-light">
-          Bienvenido, {firstName}
+          {nicknameSet ? `Hola, ${nickname}` : "¿Cómo quieres que te llame tu pareja?"}
         </p>
       </div>
 
       {/* Content */}
       <div className="w-full max-w-xs">
 
+        {/* Nickname step */}
+        {!nicknameSet && (
+          <div className="animate-fade-up space-y-4">
+            <input
+              value={nickname}
+              onChange={(e) => setNickname(sanitizeText(e.target.value))}
+              onKeyDown={(e) => e.key === "Enter" && handleNicknameSubmit()}
+              placeholder="Tu mote o nombre"
+              maxLength={30}
+              autoFocus
+              autoComplete="off"
+              className="w-full py-4 px-5 text-center font-sans text-xl rounded-2xl
+                         border-2 border-luvio-warm200 bg-luvio-surface text-luvio-text
+                         focus:border-luvio-terra focus:outline-none transition-colors"
+            />
+            <button
+              onClick={handleNicknameSubmit}
+              disabled={!nickname.trim()}
+              className="w-full py-4 rounded-2xl bg-luvio-terra text-white
+                         font-sans font-medium text-base press-scale
+                         disabled:opacity-30 transition-opacity"
+            >
+              Continuar
+            </button>
+          </div>
+        )}
+
         {/* Mode selector */}
-        {!mode && !generatedCode && (
+        {nicknameSet && !mode && !generatedCode && (
           <div className="space-y-3 animate-fade-up">
             <p className="text-luvio-warm500 text-xs text-center mb-6 tracking-wide uppercase">
               ¿Cómo empezamos?

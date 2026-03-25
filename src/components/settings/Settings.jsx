@@ -5,11 +5,18 @@ import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useExpenses } from "../../hooks/useExpenses";
 import { hapticLight, isNative } from "../../utils/native";
 
+function sanitizeText(str) {
+  return str.replace(/[<>"'&]/g, "").slice(0, 30);
+}
+
 export default function Settings({ onBack }) {
-  const { user, partner, coupleId, logout } = useAuth();
+  const { user, partner, nickname, coupleId, logout, updateNickname } = useAuth();
   const { permissionStatus, requestPermission, isEnabled } = usePushNotifications();
   const { monthlyCount, freeLimit, isPremium } = useExpenses();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editingNickname, setEditingNickname] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [nicknameSaving, setNicknameSaving] = useState(false);
 
   async function handleNotificationToggle() {
     await hapticLight();
@@ -19,6 +26,17 @@ export default function Settings({ onBack }) {
   async function handleLogout() {
     await hapticLight();
     await logout();
+  }
+
+  async function handleNicknameSave() {
+    const clean = sanitizeText(nicknameInput.trim());
+    if (!clean) return;
+    setNicknameSaving(true);
+    try {
+      await updateNickname(clean);
+      setEditingNickname(false);
+    } catch (_) {}
+    setNicknameSaving(false);
   }
 
   return (
@@ -41,7 +59,7 @@ export default function Settings({ onBack }) {
       <div className="px-6 space-y-5">
         {/* Tu cuenta */}
         <Section title="Tu cuenta">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 mb-3">
             {user?.photoURL ? (
               <img src={user.photoURL} alt="" referrerPolicy="no-referrer"
                 className="w-14 h-14 rounded-2xl object-cover" />
@@ -50,13 +68,63 @@ export default function Settings({ onBack }) {
                 {user?.displayName?.[0] || "?"}
               </div>
             )}
-            <div>
+            <div className="flex-1">
               <p className="text-luvio-text font-sans font-medium">
                 {user?.displayName || "Usuario"}
               </p>
               <p className="text-luvio-warm500 text-sm font-sans">{user?.email}</p>
             </div>
           </div>
+
+          {/* Nickname edit */}
+          {!editingNickname ? (
+            <button
+              onClick={() => { setNicknameInput(nickname || ""); setEditingNickname(true); }}
+              className="w-full flex items-center justify-between py-2.5
+                         text-sm font-sans border-t border-luvio-warm100"
+            >
+              <div>
+                <span className="text-luvio-warm500">Tu mote en la app</span>
+                {nickname && <span className="text-luvio-text font-medium ml-2">{nickname}</span>}
+              </div>
+              <span className="text-luvio-terra font-medium">Cambiar</span>
+            </button>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="border-t border-luvio-warm100 pt-3 space-y-2"
+            >
+              <input
+                value={nicknameInput}
+                onChange={(e) => setNicknameInput(sanitizeText(e.target.value))}
+                onKeyDown={(e) => e.key === "Enter" && handleNicknameSave()}
+                placeholder="Tu mote o nombre"
+                maxLength={30}
+                autoFocus
+                autoComplete="off"
+                className="w-full py-3 px-4 rounded-xl border border-luvio-warm200
+                           bg-luvio-bg text-luvio-text font-sans text-sm
+                           focus:border-luvio-terra focus:outline-none transition-colors"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditingNickname(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-luvio-warm100 text-luvio-warm500 text-sm font-sans"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleNicknameSave}
+                  disabled={!nicknameInput.trim() || nicknameSaving}
+                  className="flex-1 py-2.5 rounded-xl bg-luvio-terra text-white text-sm font-sans font-medium
+                             disabled:opacity-30 transition-opacity press-scale"
+                >
+                  {nicknameSaving ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </motion.div>
+          )}
         </Section>
 
         {/* Pareja */}

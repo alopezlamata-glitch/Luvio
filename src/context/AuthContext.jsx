@@ -6,7 +6,7 @@ import {
   onAuthStateChanged,
   OAuthProvider,
 } from "firebase/auth";
-import { ref, get, set } from "firebase/database";
+import { ref, get, set, update } from "firebase/database";
 import { auth, googleProvider, db } from "../config/firebase";
 import { isNative, isIOS } from "../utils/native";
 
@@ -22,6 +22,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [coupleId, setCoupleId] = useState(null);
   const [partner, setPartner] = useState(null);
+  const [nickname, setNickname] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Escuchar cambios de autenticación
@@ -52,13 +53,15 @@ export function AuthProvider({ children }) {
       const cId = snap.val().coupleId;
       setCoupleId(cId);
 
-      // Cargar datos del partner
+      // Cargar datos de todos los miembros
       const membersRef = ref(db, `couples/${cId}/members`);
       const membersSnap = await get(membersRef);
       if (membersSnap.exists()) {
         const members = membersSnap.val();
         const partnerUid = Object.keys(members).find((k) => k !== uid);
         if (partnerUid) setPartner(members[partnerUid]);
+        // Cargar el nickname propio desde Firebase
+        if (members[uid]?.name) setNickname(members[uid].name);
       }
     }
   }
@@ -136,7 +139,7 @@ export function AuthProvider({ children }) {
   }
 
   // Crear pareja y generar código de invitación
-  async function createCouple() {
+  async function createCouple(nickname) {
     if (!user) throw new Error("Debes iniciar sesión primero");
 
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -145,7 +148,7 @@ export function AuthProvider({ children }) {
     await set(ref(db, `couples/${newCoupleId}`), {
       members: {
         [user.uid]: {
-          name: user.displayName || "Usuario",
+          name: nickname || user.displayName || "Usuario",
           photo: user.photoURL || null,
           email: user.email,
         },
@@ -167,7 +170,7 @@ export function AuthProvider({ children }) {
   }
 
   // Unirse a pareja existente con código
-  async function joinCouple(inviteCode) {
+  async function joinCouple(inviteCode, nickname) {
     if (!user) throw new Error("Debes iniciar sesión primero");
 
     const inviteRef = ref(db, `invites/${inviteCode.toUpperCase()}`);
@@ -183,7 +186,7 @@ export function AuthProvider({ children }) {
     }
 
     await set(ref(db, `couples/${cId}/members/${user.uid}`), {
-      name: user.displayName || "Usuario",
+      name: nickname || user.displayName || "Usuario",
       photo: user.photoURL || null,
       email: user.email,
     });
@@ -192,6 +195,13 @@ export function AuthProvider({ children }) {
 
     setCoupleId(cId);
     await loadCoupleData(user.uid);
+  }
+
+  // Cambiar mote/nombre propio
+  async function updateNickname(newName) {
+    if (!user || !coupleId) throw new Error("No hay sesión activa");
+    await update(ref(db, `couples/${coupleId}/members/${user.uid}`), { name: newName });
+    setNickname(newName);
   }
 
   async function logout() {
@@ -208,6 +218,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setCoupleId(null);
     setPartner(null);
+    setNickname(null);
   }
 
   return (
@@ -216,11 +227,13 @@ export function AuthProvider({ children }) {
         user,
         coupleId,
         partner,
+        nickname,
         loading,
         loginWithGoogle,
         loginWithApple,
         createCouple,
         joinCouple,
+        updateNickname,
         logout,
       }}
     >
