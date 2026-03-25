@@ -3,7 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useExpenses } from "../../hooks/useExpenses";
 import { useGoals } from "../../hooks/useGoals";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
-import { hapticMedium, hapticLight, onDeepLink } from "../../utils/native";
+import { hapticMedium, hapticLight } from "../../utils/native";
 import AddExpense from "../expenses/AddExpense";
 import BalanceBar from "../shared/BalanceBar";
 import SharedTimeline from "../shared/SharedTimeline";
@@ -30,11 +30,6 @@ export default function Dashboard() {
       if (!dismissed) setShowNotifPrompt(true);
     }
   }, [pushEnabled, expenses.length]);
-
-  useEffect(() => {
-    const cleanup = onDeepLink(() => {});
-    return cleanup;
-  }, []);
 
   function nav(s) {
     hapticLight();

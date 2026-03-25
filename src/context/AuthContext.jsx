@@ -26,16 +26,21 @@ export function AuthProvider({ children }) {
 
   // Escuchar cambios de autenticación
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        await loadCoupleData(firebaseUser.uid);
-      } else {
-        setCoupleId(null);
-        setPartner(null);
-      }
+    let unsub = () => {};
+    try {
+      unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+        setUser(firebaseUser);
+        if (firebaseUser) {
+          await loadCoupleData(firebaseUser.uid);
+        } else {
+          setCoupleId(null);
+          setPartner(null);
+        }
+        setLoading(false);
+      }, () => setLoading(false));
+    } catch {
       setLoading(false);
-    });
+    }
     return unsub;
   }, []);
 
