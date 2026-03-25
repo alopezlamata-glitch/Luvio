@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import {
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithCredential,
   signOut,
   onAuthStateChanged,
@@ -96,7 +98,7 @@ export function AuthProvider({ children }) {
       return userCredential.user;
     }
 
-    // Web: popup
+    // Web: popup (funciona en Safari cuando es click directo del usuario)
     try {
       const result = await signInWithPopup(auth, googleProvider);
       return result.user;
@@ -141,7 +143,7 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // Web fallback: popup con OAuthProvider
+    // Web fallback: popup
     try {
       const appleProvider = new OAuthProvider("apple.com");
       appleProvider.addScope("email");
