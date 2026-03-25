@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(export PATH=\"$PATH:/c/Program Files/nodejs:/c/Users/alope/AppData/Roaming/npm\")",
+      "Bash(timeout 15 npm run dev)",
+      "Bash(gh pr:*)",
+      "Bash(where gh:*)",
+      "Read(//c/Program Files/**)",
+      "Bash(firebase deploy:*)",
+      "Bash(npx firebase-tools:*)",
+      "Bash(cmd.exe /c \"npx firebase-tools deploy --only database\")",
+      "Bash(cmd.exe /c \"npx firebase-tools deploy --only database 2>&1\")",
+      "Bash(cmd.exe /c \"cd C:\\\\Users\\\\alope\\\\Downloads\\\\luvio-project && npx firebase-tools deploy --only database\")",
+      "Bash(powershell.exe -Command \"cd ''C:\\\\Users\\\\alope\\\\Downloads\\\\luvio-project''; npx firebase-tools deploy --only database\")",
+      "Bash(powershell.exe -Command \"where.exe node; where.exe npm; where.exe npx\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem ''C:\\\\Program Files\\\\nodejs\\\\'' -ErrorAction SilentlyContinue; Get-ChildItem ''C:\\\\Program Files \\(x86\\)\\\\nodejs\\\\'' -ErrorAction SilentlyContinue; ls $env:APPDATA\\\\npm\\\\firebase* -ErrorAction SilentlyContinue\")",
+      "Bash(powershell.exe -Command \"& ''C:\\\\Program Files\\\\nodejs\\\\npx.cmd'' firebase-tools deploy --only database --project luvio-a119b\")",
+      "Bash(powershell.exe -Command \"& ''C:\\\\Program Files\\\\nodejs\\\\npm.cmd'' install -g firebase-tools 2>&1\")",
+      "Bash(node -e \"const fs = require\\(''fs''\\); const code = fs.readFileSync\\(''C:/Users/alope/Downloads/luvio-project/src/components/goals/GoalsScreen.jsx'', ''utf8''\\); const lines = code.split\\(''\\\\n''\\); lines.slice\\(92, 125\\).forEach\\(\\(l, i\\) => console.log\\(i+93, l\\)\\);\")",
+      "Bash(\"C:/Program Files/Git/bin/git.exe\" add .)",
+      "Bash(\"C:/Program Files/Git/bin/git.exe\" commit -m \"nav fixes, embedded screens, partner photo, timeline redesign\")",
+      "Bash(\"C:/Program Files/Git/bin/git.exe\" push)"
+    ]
+  }
+}

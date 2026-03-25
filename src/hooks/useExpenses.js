@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
  * - Calcula balance automáticamente
  */
 export function useExpenses() {
-  const { coupleId, user } = useAuth();
+  const { coupleId, user, partner } = useAuth();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [monthlyCount, setMonthlyCount] = useState(0);
@@ -49,7 +49,7 @@ export function useExpenses() {
   }, [coupleId]);
 
   // Añadir gasto — máximo 3 clicks
-  async function addExpense({ amount, category, paidBy, description }) {
+  async function addExpense({ amount, amountEUR, category, paidBy, currency, split, description }) {
     if (!coupleId || !user) throw new Error("No hay pareja vinculada");
 
     // Verificar límite free
@@ -61,13 +61,14 @@ export function useExpenses() {
     }
 
     const expenseData = {
-      amount: parseFloat(amount),
+      amount:    parseFloat(amount),
+      amountEUR: parseFloat(amountEUR ?? amount),
+      currency:  currency || "EUR",
       category,
-      paidBy, // uid del que pagó
+      paidBy,
+      split:       split || { type: "equal" },
       description: description || "",
       date: new Date().toISOString().slice(0, 10),
-      createdAt: Date.now(),
-      createdBy: user.uid,
     };
 
     await push(ref(db, `couples/${coupleId}/expenses`), expenseData);
@@ -78,24 +79,76 @@ export function useExpenses() {
     });
   }
 
-  // Calcular balance entre los dos
+  // Calcular balance entre los dos respetando splits
   function getBalance() {
-    const totals = {};
-    expenses.forEach((e) => {
-      totals[e.paidBy] = (totals[e.paidBy] || 0) + e.amount;
-    });
-    const uids = Object.keys(totals);
-    if (uids.length < 2) return { diff: 0, totals, balanced: true };
+    const myUid      = user?.uid;
+    const partnerUid = partner?.uid;
 
-    const diff = (totals[uids[0]] || 0) - (totals[uids[1]] || 0);
+    let myPaid = 0, partnerPaid = 0;
+    let myShouldPay = 0, partnerShouldPay = 0;
+    // settleNet: cuánto he "pagado" neto en liquidaciones
+    // +X = yo pagué X en liquidaciones (reduzco mi deuda)
+    // -X = la pareja pagó X (aumenta mi deuda relativa)
+    let settleNet = 0;
+
+    expenses.forEach((e) => {
+      const amt = e.amountEUR ?? e.amount ?? 0;
+
+      // Liquidaciones: se contabilizan aparte para que
+      // myPaid/partnerPaid nunca sean negativos.
+      // Se almacenan como amount*2 → half = deuda real saldada
+      if (e.settlement) {
+        const half = amt / 2;
+        if (e.paidBy === myUid)           settleNet += half;
+        else if (e.paidBy === partnerUid) settleNet -= half;
+        return;
+      }
+
+      if (e.paidBy === myUid)           myPaid      += amt;
+      else if (e.paidBy === partnerUid) partnerPaid += amt;
+
+      const splitType = e.split?.type || "equal";
+      if (splitType === "payer") {
+        if (e.paidBy === myUid)           myShouldPay      += amt;
+        else if (e.paidBy === partnerUid) partnerShouldPay += amt;
+      } else if (splitType === "custom" && e.split?.shares && myUid && partnerUid) {
+        myShouldPay      += amt * (e.split.shares[myUid]      ?? 0.5);
+        partnerShouldPay += amt * (e.split.shares[partnerUid] ?? 0.5);
+      } else {
+        myShouldPay      += amt / 2;
+        partnerShouldPay += amt / 2;
+      }
+    });
+
+    if (myPaid + partnerPaid === 0 && settleNet === 0)
+      return { balanced: true, amount: 0, myTotal: 0, partnerTotal: 0 };
+
+    // myNet > 0: yo pagué más de lo que debería → partner me debe
+    const myNet = (myPaid - myShouldPay) + settleNet;
+
     return {
-      diff,
-      totals,
-      balanced: Math.abs(diff) < 0.01,
-      owes: diff > 0 ? uids[1] : uids[0],
-      owed: diff > 0 ? uids[0] : uids[1],
-      amount: Math.abs(diff / 2),
+      balanced:     Math.abs(myNet) < 0.01,
+      owes:         myNet > 0 ? "partner" : "you",
+      amount:       Math.abs(myNet),
+      myTotal:      myPaid,
+      partnerTotal: partnerPaid,
     };
+  }
+
+  // Registrar liquidación — anota un pago que equilibra el balance
+  async function settleBalance({ amount, paidBy }) {
+    if (!coupleId || !user) throw new Error("No hay pareja vinculada");
+    await push(ref(db, `couples/${coupleId}/expenses`), {
+      amount:      parseFloat(amount),
+      amountEUR:   parseFloat(amount),
+      currency:    "EUR",
+      category:    "otro",
+      paidBy,
+      split:       { type: "equal" },
+      description: "Liquidación de deuda",
+      date:        new Date().toISOString().slice(0, 10),
+      settlement:  true,
+    });
   }
 
   // Gastos del mes actual
@@ -121,6 +174,7 @@ export function useExpenses() {
     loading,
     monthlyCount,
     addExpense,
+    settleBalance,
     getBalance,
     getMonthlyExpenses,
     getByCategory,

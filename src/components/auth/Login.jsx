@@ -41,9 +41,7 @@ export default function Login() {
       <div className="flex-1 flex flex-col items-center justify-center">
 
         {/* Wordmark */}
-        <h1 className="font-display italic text-6xl text-luvio-terra font-light tracking-tight mb-4">
-          luvio
-        </h1>
+        <img src="/logo.jpg" alt="luvio" className="h-16 w-auto mb-4 mx-auto mix-blend-multiply brightness-110" />
 
         {/* Tagline */}
         <p className="text-luvio-warm500 text-base text-center leading-relaxed max-w-[220px] font-light">

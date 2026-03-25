@@ -26,13 +26,13 @@ export function useGoals() {
     return () => unsub();
   }, [coupleId]);
 
-  async function addGoal({ name, target, emoji = "🎯" }) {
+  async function addGoal({ name, target, icon = "star" }) {
     if (!coupleId) return;
     await push(ref(db, `couples/${coupleId}/goals`), {
       name,
       target: parseFloat(target),
       saved: 0,
-      emoji,
+      icon,
       createdAt: Date.now(),
     });
   }

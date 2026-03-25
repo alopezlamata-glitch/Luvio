@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import Settings from "../settings/Settings";
+
+function sanitizeInviteCode(val) {
+  return val.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+}
 
 // Only allow safe alphanumeric characters in invite codes
 const INVITE_CODE_REGEX = /^[A-Z0-9]{0,6}$/;
@@ -17,12 +22,11 @@ export default function JoinCouple() {
   const defaultName = user?.displayName?.split(" ")[0] || "";
   const [nickname, setNickname] = useState(defaultName);
   const [nicknameSet, setNicknameSet] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [mode, setMode] = useState(urlCode ? "join" : null);
   const [inviteCode, setInviteCode] = useState(urlCode || "");
-  const [generatedCode, setGeneratedCode] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   function handleNicknameSubmit() {
     const clean = sanitizeText(nickname.trim());
@@ -32,14 +36,15 @@ export default function JoinCouple() {
   }
 
   async function handleCreate() {
+    if (loading) return;
     setLoading(true);
     setError(null);
     try {
-      const code = await createCouple(nickname);
-      setGeneratedCode(code);
+      await createCouple(nickname);
+      navigate("/");
     } catch (err) {
-      setError("No se pudo crear la pareja. Inténtalo de nuevo.");
-    } finally {
+      console.error("createCouple error:", err?.message || err?.code, err);
+      setError("No se pudo crear: " + (err?.message || "inténtalo de nuevo"));
       setLoading(false);
     }
   }
@@ -62,44 +67,39 @@ export default function JoinCouple() {
     }
   }
 
-  async function copyCode() {
-    try {
-      await navigator.clipboard.writeText(generatedCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (_) {}
-  }
-
-  function shareLink() {
-    // Sanitize: only use alphanumeric code in URL
-    const safeCode = generatedCode?.replace(/[^A-Z0-9]/g, "") || "";
-    const url = `${window.location.origin}/join/${safeCode}`;
-    if (navigator.share) {
-      navigator.share({ title: "Únete a Luvio", text: "Lleva nuestros gastos juntos", url });
-    } else {
-      navigator.clipboard.writeText(url);
-    }
-  }
-
   function handleCodeInput(e) {
-    const val = e.target.value.toUpperCase();
+    const val = sanitizeInviteCode(e.target.value);
     if (INVITE_CODE_REGEX.test(val)) {
       setInviteCode(val);
       setError(null);
     }
   }
 
+  if (showSettings) {
+    return <Settings onBack={() => setShowSettings(false)} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-between px-8 py-12 bg-luvio-bg safe-top safe-bottom">
 
       {/* Header */}
-      <div className="text-center">
-        <h1 className="font-display italic text-5xl text-luvio-terra font-light mb-2">
-          luvio
-        </h1>
-        <p className="text-luvio-warm500 text-sm font-light">
-          {nicknameSet ? `Hola, ${nickname}` : "¿Cómo quieres que te llame tu pareja?"}
-        </p>
+      <div className="w-full flex items-start justify-between">
+        <div className="text-center flex-1">
+          <img src="/logo.jpg" alt="luvio" className="h-14 w-auto mb-2 mx-auto mix-blend-multiply brightness-110" />
+          <p className="text-luvio-warm500 text-sm font-light">
+            {nicknameSet ? `Hola, ${nickname}` : "¿Cómo te llamas?"}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowSettings(true)}
+          aria-label="Ajustes"
+          className="w-9 h-9 rounded-xl bg-luvio-warm100 flex items-center justify-center text-luvio-warm500 press-scale mt-1"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+          </svg>
+        </button>
       </div>
 
       {/* Content */}
@@ -133,67 +133,37 @@ export default function JoinCouple() {
         )}
 
         {/* Mode selector */}
-        {nicknameSet && !mode && !generatedCode && (
+        {nicknameSet && !mode && (
           <div className="space-y-3 animate-fade-up">
             <p className="text-luvio-warm500 text-xs text-center mb-6 tracking-wide uppercase">
               ¿Cómo empezamos?
             </p>
+            {error && (
+              <p className="text-red-400 text-xs text-center mb-2 font-sans">{error}</p>
+            )}
             <button
-              onClick={() => { setMode("create"); handleCreate(); }}
+              onClick={handleCreate}
+              disabled={loading}
               className="w-full py-4 rounded-2xl bg-luvio-terra text-white
                          font-sans font-medium text-base press-scale
-                         active:opacity-80 transition-opacity"
+                         disabled:opacity-50 active:opacity-80 transition-opacity"
             >
-              Crear pareja nueva
+              {loading ? "Creando vínculo..." : "Empezar juntos"}
             </button>
             <button
               onClick={() => setMode("join")}
+              disabled={loading}
               className="w-full py-4 rounded-2xl bg-luvio-surface text-luvio-text
                          border border-luvio-warm200 font-sans font-medium text-base
-                         press-scale active:bg-luvio-warm100 transition-colors"
+                         press-scale active:bg-luvio-warm100 transition-colors disabled:opacity-50"
             >
               Tengo un código
             </button>
           </div>
         )}
 
-        {/* Generated code */}
-        {generatedCode && (
-          <div className="animate-fade-up text-center">
-            <p className="text-luvio-warm500 text-xs tracking-widest uppercase mb-6">
-              Comparte este código
-            </p>
-            <div className="bg-luvio-surface rounded-3xl p-8 border border-luvio-warm100 mb-6 shadow-surface">
-              <p className="font-display text-5xl text-luvio-terra tracking-[0.25em] font-light">
-                {generatedCode}
-              </p>
-            </div>
-            <p className="text-luvio-warm500 text-xs mb-6 leading-relaxed">
-              Cuando tu pareja introduzca este código,<br />
-              la app se activará automáticamente.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={copyCode}
-                className="flex-1 py-3 rounded-xl bg-luvio-surface text-luvio-warm500
-                           text-sm font-medium border border-luvio-warm200 press-scale
-                           transition-colors active:bg-luvio-warm100"
-              >
-                {copied ? "Copiado" : "Copiar"}
-              </button>
-              <button
-                onClick={shareLink}
-                className="flex-1 py-3 rounded-xl bg-luvio-terra text-white
-                           text-sm font-medium press-scale active:opacity-80 transition-opacity"
-              >
-                Compartir
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Join with code */}
-        {mode === "join" && !generatedCode && (
+        {mode === "join" && (
           <div className="animate-fade-up">
             <p className="text-luvio-warm500 text-xs tracking-widest uppercase text-center mb-6">
               Introduce el código

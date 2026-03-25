@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
@@ -9,11 +9,16 @@ function sanitizeText(str) {
   return str.replace(/[<>"'&]/g, "").slice(0, 30);
 }
 
-export default function Settings({ onBack }) {
-  const { user, partner, nickname, coupleId, logout, updateNickname } = useAuth();
+export default function Settings({ onBack, embedded = false }) {
+  const { user, partner, nickname, userPhoto, partnerViewPhoto, coupleId, logout, updateNickname, updatePhoto, updatePartnerPhoto, leaveCouple } = useAuth();
   const { permissionStatus, requestPermission, isEnabled } = usePushNotifications();
   const { monthlyCount, freeLimit, isPremium } = useExpenses();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [partnerPhotoUploading, setPartnerPhotoUploading] = useState(false);
+  const photoInputRef = useRef(null);
+  const partnerPhotoInputRef = useRef(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
   const [nicknameSaving, setNicknameSaving] = useState(false);
@@ -28,6 +33,34 @@ export default function Settings({ onBack }) {
     await logout();
   }
 
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoUploading(true);
+    try {
+      await updatePhoto(file);
+    } catch (err) {
+      console.error("Error uploading photo:", err);
+    } finally {
+      setPhotoUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  async function handlePartnerPhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPartnerPhotoUploading(true);
+    try {
+      await updatePartnerPhoto(file);
+    } catch (err) {
+      console.error("Error uploading partner photo:", err);
+    } finally {
+      setPartnerPhotoUploading(false);
+      e.target.value = "";
+    }
+  }
+
   async function handleNicknameSave() {
     const clean = sanitizeText(nicknameInput.trim());
     if (!clean) return;
@@ -39,35 +72,68 @@ export default function Settings({ onBack }) {
     setNicknameSaving(false);
   }
 
+  const standaloneHeader = !embedded ? (
+    <div className="px-6 pt-5 flex items-center gap-3 mb-6">
+      <button
+        onClick={onBack}
+        aria-label="Volver"
+        className="w-9 h-9 rounded-xl bg-luvio-warm100 text-luvio-warm500
+                   flex items-center justify-center press-scale"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+      <h2 className="font-sans font-medium text-luvio-text text-lg">Ajustes</h2>
+    </div>
+  ) : null;
+
   return (
-    <div className="min-h-screen pb-24 safe-top bg-luvio-bg">
-      {/* Header */}
-      <div className="px-6 pt-5 flex items-center gap-3 mb-6">
-        <button
-          onClick={onBack}
-          aria-label="Volver"
-          className="w-9 h-9 rounded-xl bg-luvio-warm100 text-luvio-warm500
-                     flex items-center justify-center press-scale"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <h2 className="font-sans font-medium text-luvio-text text-lg">Ajustes</h2>
-      </div>
+    <div className={embedded ? "pb-4" : "min-h-screen pb-24 safe-top bg-luvio-bg"}>
+      {standaloneHeader}
 
       <div className="px-6 space-y-5">
         {/* Tu cuenta */}
         <Section title="Tu cuenta">
           <div className="flex items-center gap-4 mb-3">
-            {user?.photoURL ? (
-              <img src={user.photoURL} alt="" referrerPolicy="no-referrer"
-                className="w-14 h-14 rounded-2xl object-cover" />
-            ) : (
-              <div className="w-14 h-14 rounded-2xl bg-luvio-blush flex items-center justify-center text-xl text-luvio-terra font-medium">
-                {user?.displayName?.[0] || "?"}
+            {/* Avatar clickable */}
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photoUploading}
+              className="relative w-14 h-14 rounded-2xl shrink-0 press-scale"
+              aria-label="Cambiar foto"
+            >
+              {userPhoto || user?.photoURL ? (
+                <img
+                  src={userPhoto || user.photoURL}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="w-14 h-14 rounded-2xl object-cover"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-2xl bg-luvio-blush flex items-center justify-center text-xl text-luvio-terra font-medium">
+                  {nickname?.[0] || user?.displayName?.[0] || "?"}
+                </div>
+              )}
+              {/* Camera overlay */}
+              <div className="absolute inset-0 rounded-2xl bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                {photoUploading ? (
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                )}
               </div>
-            )}
+            </button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
             <div className="flex-1">
               <p className="text-luvio-text font-sans font-medium">
                 {user?.displayName || "Usuario"}
@@ -131,14 +197,43 @@ export default function Settings({ onBack }) {
         <Section title="Vuestra pareja">
           {partner ? (
             <div className="flex items-center gap-4">
-              {partner?.photo ? (
-                <img src={partner.photo} alt="" referrerPolicy="no-referrer"
-                  className="w-10 h-10 rounded-xl object-cover" />
-              ) : (
-                <div className="w-10 h-10 rounded-xl bg-luvio-blush flex items-center justify-center text-sm text-luvio-terra font-medium">
-                  {partner?.name?.[0] || "?"}
+              {/* Avatar pareja — clickable para poner tu propia foto */}
+              <button
+                onClick={() => partnerPhotoInputRef.current?.click()}
+                disabled={partnerPhotoUploading}
+                className="relative w-10 h-10 rounded-xl shrink-0 press-scale"
+                aria-label="Cambiar foto de tu pareja"
+              >
+                {(partnerViewPhoto || partner?.photo) ? (
+                  <img
+                    src={partnerViewPhoto || partner.photo}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="w-10 h-10 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-luvio-blush flex items-center justify-center text-sm text-luvio-terra font-medium">
+                    {partner?.name?.[0] || "?"}
+                  </div>
+                )}
+                <div className="absolute inset-0 rounded-xl bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  {partnerPhotoUploading ? (
+                    <div className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                  )}
                 </div>
-              )}
+              </button>
+              <input
+                ref={partnerPhotoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePartnerPhotoChange}
+              />
               <div className="flex-1">
                 <p className="text-luvio-text text-sm font-sans font-medium">{partner.name}</p>
                 <p className="text-luvio-warm500 text-xs font-sans">{partner.email}</p>
@@ -149,6 +244,45 @@ export default function Settings({ onBack }) {
             <p className="text-luvio-warm500 text-sm font-sans">
               Tu pareja aún no se ha unido
             </p>
+          )}
+
+          {/* Desvincular pareja */}
+          {coupleId && !showLeaveConfirm && (
+            <button
+              onClick={() => setShowLeaveConfirm(true)}
+              className="w-full text-left pt-3 mt-2 border-t border-luvio-warm100
+                         text-luvio-warm500 text-sm font-sans press-scale"
+            >
+              Desvincular pareja
+            </button>
+          )}
+          {showLeaveConfirm && (
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3 pt-3 border-t border-luvio-warm100"
+            >
+              <p className="text-luvio-text text-sm font-sans font-medium mb-1">
+                ¿Seguro que quieres desvincularte?
+              </p>
+              <p className="text-luvio-warm500 text-xs mb-3 font-sans">
+                Perderás acceso a los gastos compartidos. Tu pareja no se verá afectada.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowLeaveConfirm(false)}
+                  className="flex-1 py-2 rounded-lg bg-luvio-warm100 text-luvio-warm500 text-sm font-sans"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={leaveCouple}
+                  className="flex-1 py-2 rounded-lg bg-luvio-warm200 text-luvio-text text-sm font-sans font-medium"
+                >
+                  Desvincular
+                </button>
+              </div>
+            </motion.div>
           )}
         </Section>
 
