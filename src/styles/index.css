@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Luvio iOS Global Styles ─── */
+/* ─── Luvio iOS Global Styles — Intimacy Minimalist ─── */
 
 :root {
   /* iOS Safe Areas */
@@ -11,14 +11,16 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --keyboard-height: 0px;
-  
-  /* Colors */
-  --luvio-bg: #0a0a12;
-  --luvio-card: #12121c;
-  --luvio-coral: #F97066;
-  --luvio-violet: #7C6EF6;
-  --luvio-teal: #36B5A0;
-  --luvio-amber: #F5A524;
+
+  /* Warm palette tokens */
+  --luvio-bg:      #FAF5EE;
+  --luvio-surface: #FFFDF9;
+  --luvio-terra:   #C4704F;
+  --luvio-blush:   #E8C5B8;
+  --luvio-text:    #2C1810;
+  --luvio-warm500: #8A7060;
+  --luvio-warm200: #D6C5B5;
+  --luvio-warm100: #F0E8DF;
 }
 
 html, body {
@@ -26,6 +28,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--luvio-bg);
+  color: var(--luvio-text);
   /* Prevenir bounce en iOS */
   position: fixed;
   width: 100%;
@@ -54,12 +57,10 @@ html, body {
   padding-right: var(--safe-right);
 }
 
-/* Bottom nav needs extra padding on notch iPhones */
 .nav-bottom {
   padding-bottom: calc(var(--safe-bottom) + 8px);
 }
 
-/* Keyboard-aware container */
 .keyboard-aware {
   transition: padding-bottom 0.25s ease;
   padding-bottom: var(--keyboard-height);
@@ -67,14 +68,12 @@ html, body {
 
 /* ─── iOS Native Feel ─── */
 
-/* Disable text selection on interactive elements */
 button, [role="button"] {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
-/* Smooth momentum scrolling */
 .scroll-container {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -91,62 +90,64 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Remove tap highlight on mobile */
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* iOS input styling fix */
+/* iOS input — prevents zoom on focus, removes default appearance */
 input, textarea {
   -webkit-appearance: none;
-  border-radius: 0;
-  font-size: 16px; /* Prevents iOS zoom on focus */
+  font-size: 16px;
 }
 
-/* Hide scrollbar but keep functionality */
-::-webkit-scrollbar {
-  display: none;
-}
+/* Hide scrollbar */
+::-webkit-scrollbar { display: none; }
 * {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-/* ─── iOS-style blur backgrounds ─── */
+/* ─── Warm glass utilities ─── */
 .glass {
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  background: rgba(10, 10, 18, 0.72);
+  background: rgba(250, 245, 238, 0.88);
+  border-bottom: 1px solid rgba(196, 112, 79, 0.06);
 }
 
 .glass-light {
   backdrop-filter: saturate(150%) blur(12px);
   -webkit-backdrop-filter: saturate(150%) blur(12px);
-  background: rgba(18, 18, 28, 0.8);
+  background: rgba(255, 253, 249, 0.94);
+}
+
+/* ─── Shared timeline spine ─── */
+.timeline-spine {
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--luvio-warm200) 10%,
+    var(--luvio-warm200) 90%,
+    transparent
+  );
 }
 
 /* ─── Animations ─── */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
 @keyframes slideUp {
   from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  to   { transform: translateY(0); }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
-/* iOS sheet-style modal animation */
 .sheet-enter {
   animation: slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* iOS spring-like button press */
 .press-scale {
   transition: transform 0.15s cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -154,10 +155,7 @@ input, textarea {
   transform: scale(0.96);
 }
 
-/* ─── Capacitor-specific ─── */
-
-/* When running in Capacitor, extend content under status bar */
+/* ─── Capacitor ─── */
 body.capacitor {
-  padding-top: 0; /* Status bar overlay handled by safe-top */
+  padding-top: 0;
 }
-

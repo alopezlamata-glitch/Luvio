@@ -11,10 +11,10 @@ function ProtectedRoute({ children }) {
     return (
       <div className="min-h-screen bg-luvio-bg flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-coral-400 to-amber-400 bg-clip-text text-transparent">
+          <h1 className="font-display italic text-4xl text-luvio-terra font-light">
             luvio
           </h1>
-          <p className="text-zinc-600 text-sm mt-2">Cargando...</p>
+          <p className="text-luvio-warm500 text-sm mt-2 font-sans">Cargando...</p>
         </div>
       </div>
     );
@@ -30,7 +30,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="dark min-h-screen bg-luvio-bg font-sans">
+        <div className="min-h-screen bg-luvio-bg font-sans text-luvio-text">
           <div className="max-w-[430px] mx-auto relative">
             <Routes>
               <Route path="/login" element={<Login />} />

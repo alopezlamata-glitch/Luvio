@@ -2,59 +2,134 @@
   "rules": {
     "couples": {
       "$coupleId": {
-        // Solo los miembros de la pareja pueden leer/escribir
-        ".read": "data.child('members').child(auth.uid).exists()",
-        ".write": "data.child('members').child(auth.uid).exists() || !data.exists()",
-        
+        // Solo los miembros autenticados de esa pareja pueden leer/escribir
+        ".read": "auth != null && data.child('members').child(auth.uid).exists()",
+        ".write": "auth != null && (data.child('members').child(auth.uid).exists() || !data.exists())",
+
         "members": {
-          ".validate": "newData.hasChildren() && newData.numChildren() <= 2"
+          // Máximo 2 miembros por pareja
+          ".validate": "newData.hasChildren() && newData.numChildren() <= 2",
+          "$memberId": {
+            // Solo el propio usuario puede escribir su perfil
+            ".write": "auth != null && auth.uid === $memberId",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "email": {
+              ".validate": "newData.isString() && newData.val().length <= 200"
+            }
+          }
         },
-        
+
         "expenses": {
           "$expenseId": {
             ".validate": "newData.hasChild('amount') && newData.hasChild('paidBy') && newData.hasChild('category') && newData.hasChild('date')",
             "amount": {
-              ".validate": "newData.isNumber() && newData.val() > 0"
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() < 100000"
             },
             "paidBy": {
+              // paidBy must be a member of this couple
               ".validate": "newData.isString() && root.child('couples').child($coupleId).child('members').child(newData.val()).exists()"
             },
             "category": {
               ".validate": "newData.isString() && newData.val().matches(/^(cena|casa|viaje|capricho|super|otro)$/)"
+            },
+            "description": {
+              ".validate": "newData.isString() && newData.val().length <= 100"
+            },
+            "date": {
+              ".validate": "newData.isString() && newData.val().matches(/^\\d{4}-\\d{2}-\\d{2}/)"
+            },
+            "split": {
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 100)"
+            },
+            // No extra fields allowed
+            "$other": {
+              ".validate": false
             }
           }
         },
-        
+
         "goals": {
           "$goalId": {
             ".validate": "newData.hasChild('name') && newData.hasChild('target')",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+            },
             "target": {
-              ".validate": "newData.isNumber() && newData.val() > 0"
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() < 10000000"
             },
             "saved": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 10000000"
+            },
+            "emoji": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 10)"
+            },
+            "$other": {
+              ".validate": false
             }
           }
         },
-        
+
         "subscription": {
-          ".write": "data.parent().child('members').child(auth.uid).exists()"
+          // Only members can read/write subscription status
+          ".read": "auth != null && data.parent().child('members').child(auth.uid).exists()",
+          ".write": "auth != null && data.parent().child('members').child(auth.uid).exists()"
         }
       }
     },
-    
+
     "userCouples": {
       "$userId": {
-        ".read": "auth.uid === $userId",
-        ".write": "auth.uid === $userId"
+        // Only the user themselves can read/write their own coupleId reference
+        ".read": "auth != null && auth.uid === $userId",
+        ".write": "auth != null && auth.uid === $userId",
+        ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
       }
     },
-    
+
     "invites": {
       "$inviteCode": {
-        ".read": true,
-        ".write": "!data.exists() || data.child('createdBy').val() === auth.uid"
+        // Invite codes are readable by authenticated users only (prevents unauthenticated enumeration)
+        ".read": "auth != null",
+        // Only the creator can write/update, or new code creation by auth user
+        ".write": "auth != null && (!data.exists() || data.child('createdBy').val() === auth.uid)",
+        "createdBy": {
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+        "coupleId": {
+          ".validate": "newData.isString() && newData.val().length <= 50"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
+    },
+
+    "pushTokens": {
+      "$userId": {
+        // Only the user can read/write their own push token
+        ".read": "auth != null && auth.uid === $userId",
+        ".write": "auth != null && auth.uid === $userId",
+        "token": {
+          ".validate": "newData.isString() && newData.val().length <= 512"
+        },
+        "platform": {
+          ".validate": "newData.isString() && newData.val().matches(/^(ios|android|web)$/)"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    // Deny all other paths by default
+    "$other": {
+      ".read": false,
+      ".write": false
     }
   }
 }
