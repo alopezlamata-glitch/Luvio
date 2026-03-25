@@ -1,0 +1,60 @@
+{
+  "rules": {
+    "couples": {
+      "$coupleId": {
+        // Solo los miembros de la pareja pueden leer/escribir
+        ".read": "data.child('members').child(auth.uid).exists()",
+        ".write": "data.child('members').child(auth.uid).exists() || !data.exists()",
+        
+        "members": {
+          ".validate": "newData.hasChildren() && newData.numChildren() <= 2"
+        },
+        
+        "expenses": {
+          "$expenseId": {
+            ".validate": "newData.hasChild('amount') && newData.hasChild('paidBy') && newData.hasChild('category') && newData.hasChild('date')",
+            "amount": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "paidBy": {
+              ".validate": "newData.isString() && root.child('couples').child($coupleId).child('members').child(newData.val()).exists()"
+            },
+            "category": {
+              ".validate": "newData.isString() && newData.val().matches(/^(cena|casa|viaje|capricho|super|otro)$/)"
+            }
+          }
+        },
+        
+        "goals": {
+          "$goalId": {
+            ".validate": "newData.hasChild('name') && newData.hasChild('target')",
+            "target": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "saved": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            }
+          }
+        },
+        
+        "subscription": {
+          ".write": "data.parent().child('members').child(auth.uid).exists()"
+        }
+      }
+    },
+    
+    "userCouples": {
+      "$userId": {
+        ".read": "auth.uid === $userId",
+        ".write": "auth.uid === $userId"
+      }
+    },
+    
+    "invites": {
+      "$inviteCode": {
+        ".read": true,
+        ".write": "!data.exists() || data.child('createdBy').val() === auth.uid"
+      }
+    }
+  }
+}
